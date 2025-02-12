@@ -3,42 +3,13 @@ import open from 'open';
 import fs from 'fs';
 import chalk from 'chalk';
 import figlet from 'figlet';
+import { execSync } from 'child_process';
 
 const searchHistory = []; // Array to store search history
-let username = ''; // Variable to store the username
+let username = ''; // 
+const bookmarks = [];
 
-// Load search history from a file
-function loadSearchHistory() {
-    if (fs.existsSync('searchHistory.json')) {
-        const data = fs.readFileSync('searchHistory.json');
-        searchHistory.push(...JSON.parse(data));
-    }
-}
-
-// Save search history
-function saveSearchHistory() {
-    fs.writeFileSync('searchHistory.json', JSON.stringify(searchHistory, null, 2));
-}
-
-// Function to display a welcome banner
-function displayWelcomeBanner() {
-    console.log(chalk.blueBright(figlet.textSync('YouTube CLI', { horizontalLayout: 'full' })));
-    console.log(chalk.cyanBright(`🎵 Welcome to the YouTube Video CLI! 🎵\n`)); // Added extra space
-}
-
-// Function to ask for username
-async function askForUsername() {
-    const answers = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'username',
-            message: 'Enter your name:',
-        },
-    ]);
-    username = answers.username;
-    console.log(chalk.greenBright(`\nHello, ${username}! 👋\n`)); // Added extra space
-}
-
+// Modify main function to exclude voice search
 // Function to get the video name from the user
 async function getVideoName() {
     const answers = await inquirer.prompt([
@@ -55,23 +26,120 @@ async function getVideoName() {
             },
         },
     ]);
+
     const videoName = answers.videoName;
     searchHistory.push(videoName); // Add the video name to search history
     saveSearchHistory();
     return videoName;
 }
 
+
+// Load bookmarks from file
+function loadBookmarks() {
+    if (fs.existsSync('bookmarks.json')) {
+        return JSON.parse(fs.readFileSync('bookmarks.json'));
+    }
+    return [];
+}
+
+// Save bookmarks to file
+function saveBookmarks(bookmarks) {
+    fs.writeFileSync('bookmarks.json', JSON.stringify(bookmarks, null, 2));
+}
+
+// Add video to bookmarks
+async function addBookmark(videoName) {
+    const bookmarks = loadBookmarks();
+    if (!bookmarks.includes(videoName)) {
+        bookmarks.push(videoName);
+        saveBookmarks(bookmarks);
+        console.log(chalk.green(`\n✅ "${videoName}" has been bookmarked!\n`));
+    } else {
+        console.log(chalk.yellow(`\n⚠️ "${videoName}" is already in bookmarks.\n`));
+    }
+}
+
+// View bookmarks
+function viewBookmarks() {
+    const bookmarks = loadBookmarks();
+    if (bookmarks.length === 0) {
+        console.log(chalk.yellow('\nNo bookmarks available.\n'));
+    } else {
+        console.log(chalk.green('\n📌 Your Bookmarks:\n'));
+        bookmarks.forEach((video, index) => {
+            console.log(chalk.cyan(`${index + 1}: ${video}`));
+        });
+    }
+}
+
+// Remove a bookmark
+async function removeBookmark() {
+    const bookmarks = loadBookmarks();
+    if (bookmarks.length === 0) {
+        console.log(chalk.yellow('\nNo bookmarks available to remove.\n'));
+        return;
+    }
+
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'selectedBookmark',
+            message: 'Select a bookmark to remove:',
+            choices: bookmarks,
+        },
+    ]);
+
+    const updatedBookmarks = bookmarks.filter((video) => video !== answers.selectedBookmark);
+    saveBookmarks(updatedBookmarks);
+    console.log(chalk.red(`\n❌ Removed: "${answers.selectedBookmark}" from bookmarks.\n`));
+}
+
+// Load search history
+function loadSearchHistory() {
+    if (fs.existsSync('searchHistory.json')) {
+        const data = fs.readFileSync('searchHistory.json');
+        searchHistory.push(...JSON.parse(data));
+    }
+}
+
+// Save search history
+function saveSearchHistory() {
+    fs.writeFileSync('searchHistory.json', JSON.stringify(searchHistory, null, 2));
+}
+
+// Welcome banner
+function displayWelcomeBanner() {
+    console.log(chalk.blueBright(figlet.textSync('YouTube CLI', { horizontalLayout: 'full' })));
+    console.log(chalk.cyanBright('🎵 Welcome to the YouTube Video CLI! 🎵\n'));
+}
+
+// Function to ask for username
+async function askForUsername() {
+    const answers = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'username',
+            message: 'Enter your name:',
+        },
+    ]);
+    username = answers.username;
+    console.log(chalk.greenBright(`\nHello, ${username}! 👋\n`));
+}
+
+// Function to get the video name from the user
+
+
 // Function to clear search history
 function clearSearchHistory() {
     searchHistory.length = 0; // Clear the array
     saveSearchHistory();
-    console.log(chalk.red('\nSearch history cleared.\n')); // Added extra space
+    console.log(chalk.red('\nSearch history cleared.\n'));
 }
 
 // Function to re-search from history
 async function reSearchFromHistory() {
     if (searchHistory.length === 0) {
-        console.log(chalk.yellow('\nNo search history available.\n')); // Added extra space
+        console.log(chalk.yellow('\nNo search history available.\n'));
         return;
     }
     const answers = await inquirer.prompt([
@@ -93,11 +161,13 @@ async function displayMenu() {
             name: 'menuOption',
             message: 'Choose an option:',
             choices: [
-                'Search for a new video',
-                'View search history',
-                'Re-search from history',
-                'Clear search history',
-                'Exit',
+                '🎵 Search for a new video',
+                '📌 View Bookmarked Videos',
+                '📌 Add a Video to Bookmarks',
+                '🗑️ Remove a Bookmark',
+                '🕵️ View Search History',
+                '❌ Clear Search History',
+                '🚪 Exit',
             ],
         },
     ]);
@@ -107,11 +177,11 @@ async function displayMenu() {
 // Function to display search history
 function displaySearchHistory() {
     if (searchHistory.length === 0) {
-        console.log(chalk.yellow('\nNo search history available.\n')); // Added extra space
+        console.log(chalk.yellow('\nNo search history available.\n'));
     } else {
         console.log(chalk.green('\nSearch History:\n'));
         searchHistory.forEach((video, index) => {
-            console.log(chalk.cyan(`${index + 1}: ${video}\n`)); // Added extra space
+            console.log(chalk.cyan(`${index + 1}: ${video}\n`));
         });
     }
 }
@@ -120,47 +190,40 @@ function displaySearchHistory() {
 function openYouTubeSearch(videoName) {
     const searchURL = `https://www.youtube.com/results?search_query=${encodeURIComponent(videoName)}`;
     displaySearchHistory(); // Display search history after each search
-    console.log(chalk.blue(`\nOpening YouTube search results for: "${videoName}"\n`)); // Added extra space
+    console.log(chalk.blue(`\nOpening YouTube search results for: "${videoName}"\n`));
     open(searchURL);
 }
 
-// Main CLI logic
+// CLI logic
 async function runCLI() {
-    loadSearchHistory(); // Load search history at the start
-    displayWelcomeBanner(); // Display the welcome banner
-    await askForUsername(); // Ask for the username
-
     while (true) {
-        try {
-            const option = await displayMenu();
-
-            switch (option) {
-                case 'Search for a new video':
-                    const videoName = await getVideoName();
-                    openYouTubeSearch(videoName);
-                    break;
-
-                case 'View search history':
-                    displaySearchHistory();
-                    break;
-
-                case 'Re-search from history':
-                    await reSearchFromHistory();
-                    break;
-
-                case 'Clear search history':
-                    clearSearchHistory();
-                    break;
-
-                case 'Exit':
-                    console.log(chalk.blue(`\nGoodbye, ${username}! 👋\n`)); // Added extra space
-                    process.exit(0);
-            }
-        } catch (error) {
-            console.error(chalk.red('\nAn error occurred:'), error.message); // Added extra space
+        const option = await displayMenu();
+        switch (option) {
+            case '🎵 Search for a new video':
+                const videoName = await getVideoName();
+                openYouTubeSearch(videoName);
+                break;
+            case '📌 View Bookmarked Videos':
+                viewBookmarks();
+                break;
+            case '📌 Add a Video to Bookmarks':
+                const bookmarkVideo = await getVideoName();
+                await addBookmark(bookmarkVideo);
+                break;
+            case '🗑️ Remove a Bookmark':
+                await removeBookmark();
+                break;
+            case '🕵️ View Search History':
+                displaySearchHistory();
+                break;
+            case '❌ Clear Search History':
+                clearSearchHistory();
+                break;
+            case '🚪 Exit':
+                console.log(chalk.blue(`\nGoodbye! 👋\n`));
+                process.exit(0);
         }
     }
 }
 
-// Run the CLI
 runCLI();

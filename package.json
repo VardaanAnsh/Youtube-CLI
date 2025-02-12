@@ -10,10 +10,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google-cloud/speech": "^6.7.0",
     "axios": "^1.7.9",
     "figlet": "^1.8.0",
     "googleapis": "^144.0.0",
     "inquirer": "^12.3.2",
-    "open": "^10.1.0"
+    "node-record-lpcm16": "^1.0.1",
+    "open": "^10.1.0",
+    "speech-to-text": "^2.9.1"
   }
 }
